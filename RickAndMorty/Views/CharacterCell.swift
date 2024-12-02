@@ -22,7 +22,7 @@ final class CharacterCell: UITableViewCell {
         label.font = UIFont(name: "WubbaLubbaDubDubRegular", size: 20) ?? UIFont.systemFont(ofSize: 20)
         label.textColor = .customGreen
         label.shadowColor = .customLightGreen
-        label.shadowOffset = .init(width: 2, height: 2)
+        label.shadowOffset = .init(width: 1, height: 1)
         label.text = "Character name"
         return label
     }()
@@ -57,6 +57,19 @@ final class CharacterCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
     
+    func config(with character: Character) {
+        nameLabel.text = character.name
+        descriptionLabel.text = """
+            Status: \(character.status)
+            Species: \(character.species)
+        
+            Gender: \(character.gender)
+        
+            Origin: \(character.origin.name)
+            Location: \(character.location.name)
+        """
+    }
+    
     private func setupViews(_ views: UIView...) {
         views.forEach { view in
             contentView.addSubview(view)
@@ -74,7 +87,7 @@ final class CharacterCell: UITableViewCell {
         NSLayoutConstraint.activate([
             characterView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
             characterView.widthAnchor.constraint(equalTo: characterView.heightAnchor),
-            characterView.widthAnchor.constraint(equalToConstant: 120),
+            characterView.widthAnchor.constraint(equalToConstant: 80),
             characterView.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant:  -2)
         ])
         

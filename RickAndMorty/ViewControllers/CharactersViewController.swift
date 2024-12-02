@@ -8,6 +8,9 @@
 import UIKit
 
 final class CharactersViewController: UITableViewController {
+    
+    private let networkManager = NetworkManager.shared
+    private var characters: [Character] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -16,18 +19,37 @@ final class CharactersViewController: UITableViewController {
         tableView.register(CharacterCell.self, forCellReuseIdentifier: "characterCell")
         
         tableView.dataSource = self
+        fetchCharacters()
+    }
+    
+    private func fetchCharacters() {
+        networkManager.fetchCharacters(fromURL: URL(string: "https://rickandmortyapi.com/api/character")) { [weak self] result in
+            guard let self else { return }
+            
+            switch result {
+            case .success(let characters):
+                self.characters = characters
+                DispatchQueue.main.async {
+                    self.tableView.reloadData()
+                }
+            case .failure(let error):
+                Log.error(error)
+            }
+        }
     }
 }
 
 // MARK: - UITableViewDataSource
 extension CharactersViewController {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        1
+        characters.count
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "characterCell", for: indexPath)
         guard let cell = cell as? CharacterCell else { return UITableViewCell() }
+        let character = characters[indexPath.row]
+        cell.config(with: character)
         return cell
     }
 }
