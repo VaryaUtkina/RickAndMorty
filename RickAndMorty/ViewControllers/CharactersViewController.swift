@@ -13,12 +13,10 @@ final class CharactersViewController: UITableViewController {
         super.viewDidLoad()
         view.backgroundColor = .customBackground
         setupNavigationBar()
+        tableView.register(CharacterCell.self, forCellReuseIdentifier: "characterCell")
         
         tableView.dataSource = self
-
     }
-
-
 }
 
 // MARK: - UITableViewDataSource
@@ -28,7 +26,9 @@ extension CharactersViewController {
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        <#code#>
+        let cell = tableView.dequeueReusableCell(withIdentifier: "characterCell", for: indexPath)
+        guard let cell = cell as? CharacterCell else { return UITableViewCell() }
+        return cell
     }
 }
 
@@ -70,6 +70,6 @@ private extension CharactersViewController {
     }
 }
 
-//#Preview {
-//    UINavigationController(rootViewController: CharactersViewController())
-//}
+#Preview {
+    UINavigationController(rootViewController: CharactersViewController())
+}
