@@ -19,16 +19,19 @@ final class CharactersViewController: UITableViewController {
         tableView.register(CharacterCell.self, forCellReuseIdentifier: "characterCell")
         
         tableView.dataSource = self
+        tableView.rowHeight = UITableView.automaticDimension
+        tableView.estimatedRowHeight = 100
+        
         fetchCharacters()
     }
     
     private func fetchCharacters() {
-        networkManager.fetchCharacters(fromURL: URL(string: "https://rickandmortyapi.com/api/character")) { [weak self] result in
+        networkManager.fetch(CharactersInfo.self, fromURL: URL(string: "https://rickandmortyapi.com/api/character")) { [weak self] result in
             guard let self else { return }
             
             switch result {
-            case .success(let characters):
-                self.characters = characters
+            case .success(let info):
+                self.characters = info.results
                 DispatchQueue.main.async {
                     self.tableView.reloadData()
                 }

@@ -10,10 +10,19 @@ import UIKit
 final class CharacterCell: UITableViewCell {
     private lazy var characterView: UIImageView = {
         let imageView = UIImageView()
-        imageView.image = UIImage(systemName: "camera.aperture")
-        imageView.tintColor = .customGreen
         imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.tintColor = .customGreen
+        imageView.contentMode = .scaleAspectFit
+        imageView.layer.cornerRadius = 10
+        imageView.layer.masksToBounds = true
         return imageView
+    }()
+    
+    private lazy var activityIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .medium)
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        indicator.hidesWhenStopped = true
+        return indicator
     }()
     
     private lazy var nameLabel: UILabel = {
@@ -45,10 +54,12 @@ final class CharacterCell: UITableViewCell {
         return label
     }()
     
+    private let networkManager = NetworkManager.shared
+    
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         contentView.backgroundColor = .customBackground
-        setupViews(characterView, nameLabel, descriptionLabel)
+        setupViews(characterView, activityIndicator, nameLabel, descriptionLabel)
         setupConstraints()
     }
     
@@ -58,16 +69,71 @@ final class CharacterCell: UITableViewCell {
     }
     
     func config(with character: Character) {
+        var episodes = """
+            """
+        
+        activityIndicator.startAnimating()
+        characterView.image = nil
+        
         nameLabel.text = character.name
-        descriptionLabel.text = """
-            Status: \(character.status)
-            Species: \(character.species)
+        descriptionLabel.text = "Loading episodes..."
         
-            Gender: \(character.gender)
+        let group = DispatchGroup()
         
-            Origin: \(character.origin.name)
-            Location: \(character.location.name)
-        """
+        let episodesSyncQueue = DispatchQueue(label: "com.app.episodesSyncQueue")
+        
+        for episodeURL in character.episode {
+            group.enter()
+            
+            networkManager.fetch(Episode.self, fromURL: episodeURL) { result in
+                switch result {
+                case .success(let episode):
+                    episodesSyncQueue.sync {
+                        episodes.append("\(episode.episode): \(episode.name)\n")
+                    }
+                case .failure(let error):
+                    Log.error(error)
+                }
+                group.leave()
+            }
+        }
+        
+        group.notify(queue: .main) { [weak self] in
+            guard let self else { return }
+            
+            descriptionLabel.text = """
+                Status: \(character.status)
+                Species: \(character.species)
+                
+                Gender: \(character.gender)
+                
+                Origin: \(character.origin.name)
+                Location: \(character.location.name)
+                
+                Episodes: 
+                \(episodes)
+                """
+            
+            if let tableView = superview as? UITableView {
+                tableView.beginUpdates()
+                tableView.endUpdates()
+            }
+            
+        }
+        
+        networkManager.fetchImage(from: character.image) { [weak self] result in
+            guard let self else { return }
+            
+            switch result {
+            case .success(let imageData):
+                activityIndicator.stopAnimating()
+                characterView.image = UIImage(data: imageData)
+            case .failure(let error):
+                activityIndicator.stopAnimating()
+                characterView.image = UIImage(systemName: "camera.aperture")
+                Log.error(error)
+            }
+        }
     }
     
     private func setupViews(_ views: UIView...) {
@@ -91,6 +157,10 @@ final class CharacterCell: UITableViewCell {
             characterView.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant:  -2)
         ])
         
+        NSLayoutConstraint.activate([
+            activityIndicator.centerXAnchor.constraint(equalTo: characterView.centerXAnchor),
+            activityIndicator.centerYAnchor.constraint(equalTo: characterView.centerYAnchor)
+        ])
         
         NSLayoutConstraint.activate([
             descriptionLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 2),

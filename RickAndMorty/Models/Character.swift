@@ -25,6 +25,7 @@ struct Character: Decodable {
     let origin: Origin
     let location: Location
     let image: URL
+    let episode: [URL]
 }
 
 struct Origin: Decodable {
@@ -33,4 +34,9 @@ struct Origin: Decodable {
 
 struct Location: Decodable {
     let name: String
+}
+
+struct Episode: Decodable {
+    let name: String
+    let episode: String
 }
