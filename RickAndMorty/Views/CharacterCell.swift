@@ -28,6 +28,7 @@ final class CharacterCell: UITableViewCell {
     private lazy var nameLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 0
         label.font = UIFont(name: "WubbaLubbaDubDubRegular", size: 20) ?? UIFont.systemFont(ofSize: 20)
         label.textColor = .customGreen
         label.shadowColor = .customLightGreen
@@ -68,6 +69,76 @@ final class CharacterCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
     
+    func config(with characterData: CharacterData) {
+        var episodes = """
+            """
+        
+        activityIndicator.startAnimating()
+        characterView.image = nil
+        
+        nameLabel.text = characterData.name
+        descriptionLabel.text = "Loading episodes..."
+        
+        let group = DispatchGroup()
+        
+        let episodesSyncQueue = DispatchQueue(label: "com.app.episodesSyncQueue")
+                
+        guard let episodesSet = characterData.episodes as? Set<EpisodeData> else {
+            Log.error("No episodes in characterData.")
+            return
+        }
+            
+        for episode in Array(episodesSet) {
+            group.enter()
+            
+            networkManager.fetch(Episode.self, fromURL: episode.episodeURL) { result in
+                switch result {
+                case .success(let episode):
+                    episodesSyncQueue.sync {
+                        episodes.append("\(episode.episode): \(episode.name)\n")
+                    }
+                case .failure(let error):
+                    Log.error(error)
+                }
+                group.leave()
+            }
+        }
+        
+        group.notify(queue: .main) { [weak self] in
+            guard let self else { return }
+            
+            descriptionLabel.text = """
+                Status: \(characterData.status ?? "")
+                
+                Origin: \(characterData.origin ?? "")
+                Location: \(characterData.location ?? "")
+                
+                Episodes: 
+                \(episodes)
+                """
+            
+            if let tableView = superview as? UITableView {
+                tableView.beginUpdates()
+                tableView.endUpdates()
+            }
+            
+        }
+        
+        networkManager.fetchImage(from: characterData.image) { [weak self] result in
+            guard let self else { return }
+            
+            switch result {
+            case .success(let imageData):
+                activityIndicator.stopAnimating()
+                characterView.image = UIImage(data: imageData)
+            case .failure(let error):
+                activityIndicator.stopAnimating()
+                characterView.image = UIImage(systemName: "camera.aperture")
+                Log.error(error)
+            }
+        }
+    }
+    
     func config(with character: Character) {
         var episodes = """
             """
@@ -103,9 +174,6 @@ final class CharacterCell: UITableViewCell {
             
             descriptionLabel.text = """
                 Status: \(character.status)
-                Species: \(character.species)
-                
-                Gender: \(character.gender)
                 
                 Origin: \(character.origin.name)
                 Location: \(character.location.name)

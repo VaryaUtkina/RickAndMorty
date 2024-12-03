@@ -82,7 +82,12 @@ final class NetworkManager {
         }.resume()
     }
     
-    func fetchImage(from url: URL, completion: @escaping(Result<Data,NetworkError>) -> Void) {
+    func fetchImage(from url: URL?, completion: @escaping(Result<Data,NetworkError>) -> Void) {
+        guard let url else {
+            Log.error("Invalid URL")
+            return
+        }
+        
         DispatchQueue.global().async {
             guard let imageData = try? Data(contentsOf: url) else {
                 completion(.failure(.noData))

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23507" systemVersion="24B91" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="ApiData" representedClassName="ApiData" syncable="YES" codeGenerationType="class">
+        <attribute name="nextURL" optional="YES" attributeType="URI"/>
+    </entity>
+    <entity name="CharacterData" representedClassName="CharacterData" syncable="YES" codeGenerationType="class">
+        <attribute name="image" attributeType="URI"/>
+        <attribute name="location" attributeType="String"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="origin" attributeType="String"/>
+        <attribute name="status" attributeType="String"/>
+        <relationship name="episodes" toMany="YES" deletionRule="Nullify" destinationEntity="EpisodeData" inverseName="toCharacter" inverseEntity="EpisodeData"/>
+    </entity>
+    <entity name="EpisodeData" representedClassName="EpisodeData" syncable="YES" codeGenerationType="class">
+        <attribute name="episodeURL" attributeType="URI"/>
+        <relationship name="toCharacter" maxCount="1" deletionRule="Nullify" destinationEntity="CharacterData" inverseName="episodes" inverseEntity="CharacterData"/>
+    </entity>
+</model>

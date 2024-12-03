@@ -10,9 +10,13 @@ import UIKit
 final class CharactersViewController: UITableViewController {
     
     private let networkManager = NetworkManager.shared
+    private let storageManager = StorageManager.shared
+    
+    private var dataCharacters: [CharacterData] = []
     private var characters: [Character] = []
+    private var nextURL: URL?
+    
     private var isLoading = false
-    private var nextURL = URL(string: "https://rickandmortyapi.com/api/character")
     private var hasMoreData = false
 
     override func viewDidLoad() {
@@ -27,18 +31,43 @@ final class CharactersViewController: UITableViewController {
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 100
         
-        loadCharacters()
+        fetchData { [weak self] in
+            guard let self else { return }
+            self.loadCharacters()
+        }
     }
     
-    private func fetchCharacters() {
-        networkManager.fetch(CharactersInfo.self, fromURL: URL(string: "https://rickandmortyapi.com/api/character")) { [weak self] result in
+    private func fetchData(completion: @escaping() -> Void) {
+        storageManager.fetchApiData { [weak self] result in
             guard let self else { return }
             
             switch result {
-            case .success(let info):
-                self.characters = info.results
+            case .success(let apiData):
                 DispatchQueue.main.async {
-                    self.tableView.reloadData()
+                    self.nextURL = apiData.last?.nextURL
+                    self.fetchCharacters {
+                        if self.dataCharacters.count < 10 {
+                            completion()
+                        }
+                    }
+                }
+            case .failure(let error):
+                Log.error("Loading error in ApiData: \(error)")
+                nextURL = URL(string: "https://rickandmortyapi.com/api/character")
+                completion()
+            }
+        }
+    }
+    
+    private func fetchCharacters(completion: @escaping() -> Void) {
+        storageManager.fetchData { [weak self] result in
+            guard let self else { return }
+            
+            switch result {
+            case .success(let characters):
+                DispatchQueue.main.async {
+                    self.dataCharacters = characters
+                    completion()
                 }
             case .failure(let error):
                 Log.error(error)
@@ -68,8 +97,10 @@ final class CharactersViewController: UITableViewController {
             case .success(let info):
                 DispatchQueue.main.async {
                     info.results.forEach { self.characters.append($0) }
+                    self.storageManager.save(self.characters)
                     self.nextURL = info.info.next
-                    self.hasMoreData = (info.info.next != nil)
+                    self.storageManager.save(self.nextURL)
+                    self.hasMoreData = (self.nextURL != nil)
                     self.tableView.reloadData()
                 }
             case .failure(let error):

@@ -6,7 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		4891259F2CFF3379008C534C /* CoreData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4891259E2CFF3379008C534C /* CoreData.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		4891259E2CFF3379008C534C /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
 		48CA8AFC2CFD9D2C0034C49F /* RickAndMorty.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RickAndMorty.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -36,16 +41,26 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4891259F2CFF3379008C534C /* CoreData.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4891259D2CFF3379008C534C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				4891259E2CFF3379008C534C /* CoreData.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		48CA8AF32CFD9D2C0034C49F = {
 			isa = PBXGroup;
 			children = (
 				48CA8AFE2CFD9D2C0034C49F /* RickAndMorty */,
+				4891259D2CFF3379008C534C /* Frameworks */,
 				48CA8AFD2CFD9D2C0034C49F /* Products */,
 			);
 			sourceTree = "<group>";

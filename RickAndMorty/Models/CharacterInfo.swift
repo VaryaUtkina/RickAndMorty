@@ -1,5 +1,5 @@
 //
-//  Character.swift
+//  CharacterInfo.swift
 //  RickAndMorty
 //
 //  Created by Варвара Уткина on 02.12.2024.
@@ -20,8 +20,6 @@ struct Info: Decodable {
 struct Character: Decodable {
     let name: String
     let status: String
-    let species: String
-    let gender: String
     let origin: Origin
     let location: Location
     let image: URL
