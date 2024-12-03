@@ -11,6 +11,9 @@ final class CharactersViewController: UITableViewController {
     
     private let networkManager = NetworkManager.shared
     private var characters: [Character] = []
+    private var isLoading = false
+    private var nextURL = URL(string: "https://rickandmortyapi.com/api/character")
+    private var hasMoreData = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -19,10 +22,12 @@ final class CharactersViewController: UITableViewController {
         tableView.register(CharacterCell.self, forCellReuseIdentifier: "characterCell")
         
         tableView.dataSource = self
+        tableView.delegate = self
+        
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 100
         
-        fetchCharacters()
+        loadCharacters()
     }
     
     private func fetchCharacters() {
@@ -40,6 +45,40 @@ final class CharactersViewController: UITableViewController {
             }
         }
     }
+    
+    private func loadCharacters() {
+        guard !isLoading else {
+            Log.error("Loading status: \(isLoading)")
+            return
+        }
+        isLoading = true
+
+        guard let url = nextURL else {
+            isLoading = false
+            Log.error("No url, loading is stopped")
+            return
+        }
+        
+        networkManager.fetchCharacters(from: url) { [weak self] result in
+            guard let self else { return }
+            
+            defer { isLoading = false }
+            
+            switch result {
+            case .success(let info):
+                DispatchQueue.main.async {
+                    info.results.forEach { self.characters.append($0) }
+                    self.nextURL = info.info.next
+                    self.hasMoreData = (info.info.next != nil)
+                    self.tableView.reloadData()
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    Log.error(error)
+                }
+            }
+        }
+    }
 }
 
 // MARK: - UITableViewDataSource
@@ -54,6 +93,20 @@ extension CharactersViewController {
         let character = characters[indexPath.row]
         cell.config(with: character)
         return cell
+    }
+}
+
+// MARK: - UITableViewDelegate
+extension CharactersViewController {
+    override func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        let offsetY = scrollView.contentOffset.y
+        let contentHeight = scrollView.contentSize.height
+        let frameHeight = scrollView.frame.size.height
+        
+        if offsetY > contentHeight - frameHeight - 100 {
+            if isLoading || !hasMoreData { return }
+            loadCharacters()
+        }
     }
 }
 

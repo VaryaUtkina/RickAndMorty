@@ -16,7 +16,47 @@ enum NetworkError: Error {
 final class NetworkManager {
     static let shared = NetworkManager()
     
+    private var isLoading = false
+    
     private init() {}
+    
+    func fetchCharacters(from url: URL?, completion: @escaping(Result<CharactersInfo, NetworkError>) -> Void) {
+        guard !isLoading else {
+            Log.error("Status of loading: \(isLoading)")
+            return
+        }
+        
+        guard let url else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        isLoading = true
+        
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+            guard let self else { return }
+            
+            defer { isLoading = false }
+            
+            guard let data else {
+                completion(.failure(.noData))
+                return
+            }
+            
+            let decoder = JSONDecoder()
+            
+            do {
+                let info = try decoder.decode(CharactersInfo.self, from: data)
+                DispatchQueue.main.async {
+                    completion(.success(info))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(.decodingError))
+                }
+            }
+        }.resume()
+    }
     
     func fetch<T: Decodable>(_ type: T.Type, fromURL url: URL?, completion: @escaping(Result<T, NetworkError>) -> Void) {
         guard let url else {
