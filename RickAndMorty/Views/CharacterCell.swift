@@ -80,7 +80,6 @@ final class CharacterCell: UITableViewCell {
         descriptionLabel.text = "Loading episodes..."
         
         let group = DispatchGroup()
-        
         let episodesSyncQueue = DispatchQueue(label: "com.app.episodesSyncQueue")
                 
         guard let episodesSet = characterData.episodes as? Set<EpisodeData> else {

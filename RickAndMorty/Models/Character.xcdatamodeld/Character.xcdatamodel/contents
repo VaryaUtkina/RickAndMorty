@@ -9,7 +9,7 @@
         <attribute name="name" attributeType="String"/>
         <attribute name="origin" attributeType="String"/>
         <attribute name="status" attributeType="String"/>
-        <relationship name="episodes" toMany="YES" deletionRule="Nullify" destinationEntity="EpisodeData" inverseName="toCharacter" inverseEntity="EpisodeData"/>
+        <relationship name="episodes" toMany="YES" deletionRule="Cascade" destinationEntity="EpisodeData" inverseName="toCharacter" inverseEntity="EpisodeData"/>
     </entity>
     <entity name="EpisodeData" representedClassName="EpisodeData" syncable="YES" codeGenerationType="class">
         <attribute name="episodeURL" attributeType="URI"/>

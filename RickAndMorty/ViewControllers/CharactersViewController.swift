@@ -13,7 +13,6 @@ final class CharactersViewController: UITableViewController {
     private let storageManager = StorageManager.shared
     
     private var dataCharacters: [CharacterData] = []
-    private var characters: [Character] = []
     private var nextURL: URL?
     
     private var isLoading = false
@@ -22,6 +21,7 @@ final class CharactersViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .customBackground
+        
         setupNavigationBar()
         tableView.register(CharacterCell.self, forCellReuseIdentifier: "characterCell")
         
@@ -31,9 +31,23 @@ final class CharactersViewController: UITableViewController {
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 100
         
-        fetchData { [weak self] in
+        isFirstAppLaunch { [weak self] in
             guard let self else { return }
-            self.loadCharacters()
+            self.fetchData {
+                self.fetchCharacters()
+            }
+        }
+    }
+    
+    private func isFirstAppLaunch(completion: @escaping() -> Void) {
+        if !UserDefaults.standard.bool(forKey: "done") {
+            UserDefaults.standard.set(true, forKey: "done")
+            nextURL = URL(string: "https://rickandmortyapi.com/api/character")
+            loadCharacters {
+                completion()
+            }
+        } else {
+            completion()
         }
     }
     
@@ -45,11 +59,7 @@ final class CharactersViewController: UITableViewController {
             case .success(let apiData):
                 DispatchQueue.main.async {
                     self.nextURL = apiData.last?.nextURL
-                    self.fetchCharacters {
-                        if self.dataCharacters.count < 10 {
-                            completion()
-                        }
-                    }
+                    completion()
                 }
             case .failure(let error):
                 Log.error("Loading error in ApiData: \(error)")
@@ -59,7 +69,7 @@ final class CharactersViewController: UITableViewController {
         }
     }
     
-    private func fetchCharacters(completion: @escaping() -> Void) {
+    private func fetchCharacters() {
         storageManager.fetchData { [weak self] result in
             guard let self else { return }
             
@@ -67,7 +77,7 @@ final class CharactersViewController: UITableViewController {
             case .success(let characters):
                 DispatchQueue.main.async {
                     self.dataCharacters = characters
-                    completion()
+                    self.tableView.reloadData()
                 }
             case .failure(let error):
                 Log.error(error)
@@ -75,7 +85,7 @@ final class CharactersViewController: UITableViewController {
         }
     }
     
-    private func loadCharacters() {
+    private func loadCharacters(completion: @escaping(() -> Void)) {
         guard !isLoading else {
             Log.error("Loading status: \(isLoading)")
             return
@@ -96,16 +106,20 @@ final class CharactersViewController: UITableViewController {
             switch result {
             case .success(let info):
                 DispatchQueue.main.async {
-                    info.results.forEach { self.characters.append($0) }
-                    self.storageManager.save(self.characters)
+                    var characters: [Character] = []
+                    info.results.forEach { characters.append($0) }
+                    self.storageManager.save(characters)
+                    
                     self.nextURL = info.info.next
-                    self.storageManager.save(self.nextURL)
                     self.hasMoreData = (self.nextURL != nil)
-                    self.tableView.reloadData()
+                    self.storageManager.save(self.nextURL)
+                    
+                    completion()
                 }
             case .failure(let error):
                 DispatchQueue.main.async {
                     Log.error(error)
+                    completion()
                 }
             }
         }
@@ -115,13 +129,13 @@ final class CharactersViewController: UITableViewController {
 // MARK: - UITableViewDataSource
 extension CharactersViewController {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        characters.count
+        dataCharacters.count
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "characterCell", for: indexPath)
         guard let cell = cell as? CharacterCell else { return UITableViewCell() }
-        let character = characters[indexPath.row]
+        let character = dataCharacters[indexPath.row]
         cell.config(with: character)
         return cell
     }
@@ -136,7 +150,78 @@ extension CharactersViewController {
         
         if offsetY > contentHeight - frameHeight - 100 {
             if isLoading || !hasMoreData { return }
-            loadCharacters()
+            loadCharacters { [weak self] in
+                guard let self else { return }
+                self.fetchData {
+                    self.fetchCharacters()
+                }
+            }
+        }
+    }
+    
+    override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let character = dataCharacters[indexPath.row]
+        let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { [unowned self] _, _, _ in
+            storageManager.delete(character)
+            dataCharacters.remove(at: indexPath.row)
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+        }
+        
+        let editAction = UIContextualAction(style: .normal, title: "Edit") { [unowned self] _, _, isDone in
+            showAlert(withCharacter: character) { [ weak self] newName in
+                guard let self else { return }
+                guard let name = newName else { return }
+                storageManager.update(character, withName: name)
+                dataCharacters[indexPath.row].name = name
+                tableView.reloadRows(at: [indexPath], with: .automatic)
+
+            }
+            isDone(true)
+        }
+        
+        editAction.backgroundColor = .customGreen
+        return UISwipeActionsConfiguration(actions: [deleteAction, editAction])
+    }
+    
+    override func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        cell.backgroundColor = .customBackground
+    }
+}
+
+
+// MARK: - UIAlertController
+private extension CharactersViewController {
+    func showAlert(withCharacter character: CharacterData, completion: @escaping(String?) -> Void) {
+        let alert = UIAlertController(title: "Editing", message: "Enter new Character's name", preferredStyle: .alert)
+        let okAction = UIAlertAction(title: "OK", style: .default) { _ in
+            guard let textField = alert.textFields?.first, let newName = textField.text, !newName.isEmpty else {
+                completion(nil)
+                return
+            }
+            completion(newName)
+        }
+        let cancelAction = UIAlertAction(title: "Cancel", style: .destructive) { _ in
+            completion(nil)
+        }
+        alert.addAction(okAction)
+        alert.addAction(cancelAction)
+        alert.addTextField { textField in
+            textField.text = character.name
+            
+            okAction.isEnabled = !(textField.text?.trimmingCharacters(in: .whitespaces).isEmpty ?? true)
+            
+            textField.addTarget(self, action: #selector(self.textChanged(_:)), for: .editingChanged)
+        }
+        
+        present(alert, animated: true)
+    }
+    
+    @objc func textChanged(_ textField: UITextField) {
+        if let alert = presentedViewController as? UIAlertController {
+            let okAction = alert.actions.first { action in
+                action.title == "OK"
+            }
+            okAction?.isEnabled = !(textField.text?.trimmingCharacters(in: .whitespaces).isEmpty ?? true)
         }
     }
 }
@@ -157,6 +242,8 @@ private extension CharactersViewController {
         shadow.shadowOffset = CGSize(width: 2, height: 2)
         shadow.shadowBlurRadius = 3
         
+        navigationItem.leftBarButtonItem = editButtonItem
+        navigationItem.leftBarButtonItem?.tintColor = .customGreen
         
         navBarAppearance.titleTextAttributes = [
             .foregroundColor: UIColor.customBlue,
