@@ -47,7 +47,6 @@ final class NetworkManager {
             
             do {
                 let info = try decoder.decode(CharactersInfo.self, from: data)
-                Log.debug("Received info: \(info). Next url is \(info.info.next?.formatted() ?? "No url")")
                 DispatchQueue.main.async {
                     completion(.success(info))
                 }

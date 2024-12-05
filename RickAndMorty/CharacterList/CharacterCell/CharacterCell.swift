@@ -49,13 +49,7 @@ final class CharacterCell: UITableViewCell, CellModelRepresentable {
         label.textColor = .customBlue
         label.shadowColor = .customDarkBlue
         label.shadowOffset = .init(width: 0.5, height: 0.5)
-        label.text = """
-            Status:
-            Species: 
-            Gender: 
-            Origin:
-            Location:
-        """
+        label.text = ""
         return label
     }()
     
@@ -80,69 +74,32 @@ final class CharacterCell: UITableViewCell, CellModelRepresentable {
     }
     
     func updateView() {
+        activityIndicator.startAnimating()
         guard let viewModel = viewModel as? CharacterCellViewModel else { return }
         
-        activityIndicator.startAnimating()
-        characterView.image = nil
-        
-        if let imageData = viewModel.imageData {
-            characterView.image =  UIImage(data: imageData)
-        } else {
-            characterView.image = UIImage(systemName: "camera.aperture")
-        }
-        
-        activityIndicator.stopAnimating()
-        
         nameLabel.text = viewModel.characterName
-        descriptionLabel.text = "Loading episodes..."
-    }
-    
-    func config(with characterData: CharacterData) {
-        var episodes = """
-            """
         
-        let group = DispatchGroup()
-        let episodesSyncQueue = DispatchQueue(label: "com.app.episodesSyncQueue")
-                
-        guard let episodesSet = characterData.episodes as? Set<EpisodeData> else {
-            Log.error("No episodes in characterData.")
-            return
-        }
-            
-        for episode in Array(episodesSet) {
-            group.enter()
-            
-            networkManager.fetch(Episode.self, fromURL: episode.episodeURL) { result in
-                switch result {
-                case .success(let episode):
-                    episodesSyncQueue.sync {
-                        episodes.append("\(episode.episode): \(episode.name)\n")
+        if characterView.image == nil {
+            viewModel.loadImageData { [weak self] imageData in
+                guard let self else { return }
+                DispatchQueue.main.async {
+                    self.activityIndicator.stopAnimating()
+                    if let imageData {
+                        self.characterView.image = UIImage(data: imageData)
+                    } else {
+                        self.characterView.image = UIImage(systemName: "person")
                     }
-                case .failure(let error):
-                    Log.error(error)
                 }
-                group.leave()
             }
         }
         
-        group.notify(queue: .main) { [weak self] in
+        viewModel.loadEpisodes { [weak self] description in
             guard let self else { return }
-            
-            descriptionLabel.text = """
-                Status: \(characterData.status ?? "")
-                
-                Origin: \(characterData.origin ?? "")
-                Location: \(characterData.location ?? "")
-                
-                Episodes: 
-                \(episodes)
-                """
-            
-            if let tableView = superview as? UITableView {
-                tableView.beginUpdates()
-                tableView.endUpdates()
+            DispatchQueue.main.async {
+                self.descriptionLabel.text = description
+                guard let tableView = self.superview as? UITableView else { return }
+                tableView.reloadData()
             }
-            
         }
     }
     
@@ -181,6 +138,3 @@ final class CharacterCell: UITableViewCell, CellModelRepresentable {
     }
 }
 
-#Preview {
-    CharacterCell()
-}

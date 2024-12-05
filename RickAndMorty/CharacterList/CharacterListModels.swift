@@ -7,17 +7,17 @@
 
 import Foundation
 
-typealias CharacterCellViewModel = ChatacterList.ShowCharacters.ViewModel.CharacterCellViewModel
+typealias CharacterCellViewModel = CharacterList.ShowCharacters.ViewModel.CharacterCellViewModel
 
 protocol CharacterCellViewModelProtocol {
     var identifier: String { get }
     var characterName: String { get }
-    var imageData: Data? { get }
     init(character: CharacterData)
+    func loadImageData(completion: @escaping (Data?) -> Void)
     func loadEpisodes(completion: @escaping (String) -> Void)
 }
 
-enum ChatacterList {
+enum CharacterList {
     
     // MARK: Use cases
     enum ShowCharacters {
@@ -36,15 +36,23 @@ enum ChatacterList {
                     character.name ?? ""
                 }
                 
-                var imageData: Data? {
-                    ImageManager.shared.fetchImageData(from: character.image)
-                }
-                
                 private let character: CharacterData
                 
                 init(character: CharacterData) {
                     self.character = character
                 }
+                
+                func loadImageData(completion: @escaping (Data?) -> Void) {
+                    NetworkManager.shared.fetchImage(from: character.image) { result in
+                        switch result {
+                        case .success(let data):
+                            completion(data)
+                        case .failure(let error):
+                            Log.error(error)
+                        }
+                    }
+                }
+                
                 
                 func loadEpisodes(completion: @escaping (String) -> Void) {
                     var episodesText = ""

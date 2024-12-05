@@ -12,9 +12,17 @@ final class ImageManager {
     
     private init() {}
     
-    func fetchImageData(from url: URL?) -> Data? {
-        guard let url = url else { return nil }
-        guard let imageData = try? Data(contentsOf: url) else { return nil }
-        return imageData
+    func fetchImageData(from url: URL?, completion: @escaping (Data?) -> Void) {
+        guard let url = url else {
+            Log.error("Invalid url")
+            return
+        }
+        URLSession.shared.dataTask(with: url) { data, _, error in
+            guard let data else {
+                Log.error("No data received")
+                return
+            }
+            completion(data)
+        }.resume()
     }
 }

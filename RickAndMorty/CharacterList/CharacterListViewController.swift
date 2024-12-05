@@ -7,7 +7,15 @@
 
 import UIKit
 
+protocol CharacterListDisplayLogic: AnyObject {
+    func displayCharacters(viewModel: CharacterList.ShowCharacters.ViewModel)
+}
+
 final class CharacterListViewController: UITableViewController {
+    
+    var interactor: CharacterListBusinessLogic?
+    
+    private var rows: [CharacterCellViewModelProtocol] = []
     
     private let networkManager = NetworkManager.shared
     private let storageManager = StorageManager.shared
@@ -18,10 +26,11 @@ final class CharacterListViewController: UITableViewController {
     private var isLoading = false
     private var hasMoreData = false
     
-    var interactor: CharacterListBusinessLogic?
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        CharacterListConfigurator.shared.configure(with: self)
+        
         view.backgroundColor = .customBackground
         
         setupNavigationBar()
@@ -33,114 +42,26 @@ final class CharacterListViewController: UITableViewController {
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 100
         
-        CharacterListConfigurator.shared.configure(with: self)
         
-        isFirstAppLaunch { [weak self] in
-            guard let self else { return }
-            self.fetchData {
-                self.fetchCharacters()
-            }
-        }
+        showCharacters()
     }
     
-    private func isFirstAppLaunch(completion: @escaping() -> Void) {
-        if !UserDefaults.standard.bool(forKey: "done") {
-            UserDefaults.standard.set(true, forKey: "done")
-            nextURL = URL(string: "https://rickandmortyapi.com/api/character")
-            loadCharacters {
-                completion()
-            }
-        } else {
-            completion()
-        }
-    }
-    
-    private func fetchData(completion: @escaping() -> Void) {
-        storageManager.fetchApiData { [weak self] result in
-            guard let self else { return }
-            
-            switch result {
-            case .success(let apiData):
-                DispatchQueue.main.async {
-                    self.nextURL = apiData.last?.nextURL
-                    completion()
-                }
-            case .failure(let error):
-                Log.error("Loading error in ApiData: \(error)")
-                nextURL = URL(string: "https://rickandmortyapi.com/api/character")
-                completion()
-            }
-        }
-    }
-    
-    private func fetchCharacters() {
-        storageManager.fetchData { [weak self] result in
-            guard let self else { return }
-            
-            switch result {
-            case .success(let characters):
-                DispatchQueue.main.async {
-                    self.dataCharacters = characters
-                    self.tableView.reloadData()
-                }
-            case .failure(let error):
-                Log.error(error)
-            }
-        }
-    }
-    
-    private func loadCharacters(completion: @escaping(() -> Void)) {
-        guard !isLoading else {
-            Log.error("Loading status: \(isLoading)")
-            return
-        }
-        isLoading = true
-
-        guard let url = nextURL else {
-            isLoading = false
-            Log.error("No url, loading is stopped")
-            return
-        }
-        
-        networkManager.fetchCharacters(from: url) { [weak self] result in
-            guard let self else { return }
-            
-            defer { isLoading = false }
-            
-            switch result {
-            case .success(let info):
-                DispatchQueue.main.async {
-                    var characters: [Character] = []
-                    info.results.forEach { characters.append($0) }
-                    self.storageManager.save(characters)
-                    
-                    self.nextURL = info.info.next
-                    self.hasMoreData = (self.nextURL != nil)
-                    self.storageManager.save(self.nextURL)
-                    
-                    completion()
-                }
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    Log.error(error)
-                    completion()
-                }
-            }
-        }
+    private func showCharacters() {
+        interactor?.getCharacters()
     }
 }
 
 // MARK: - UITableViewDataSource
 extension CharacterListViewController {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        dataCharacters.count
+        rows.count
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "characterCell", for: indexPath)
+        let cellViewModel = rows[indexPath.row]
+        let cell = tableView.dequeueReusableCell(withIdentifier: cellViewModel.identifier, for: indexPath)
         guard let cell = cell as? CharacterCell else { return UITableViewCell() }
-        let character = dataCharacters[indexPath.row]
-        cell.config(with: character)
+        cell.viewModel = cellViewModel
         return cell
     }
 }
@@ -152,14 +73,9 @@ extension CharacterListViewController {
         let contentHeight = scrollView.contentSize.height
         let frameHeight = scrollView.frame.size.height
         
-        if offsetY > contentHeight - frameHeight - 100 {
-            if isLoading || !hasMoreData { return }
-            loadCharacters { [weak self] in
-                guard let self else { return }
-                self.fetchData {
-                    self.fetchCharacters()
-                }
-            }
+        if offsetY > contentHeight - frameHeight - 100 && !isLoading && hasMoreData {
+            isLoading = true
+            interactor?.loadMoreCharacters()
         }
     }
     
@@ -270,6 +186,10 @@ private extension CharacterListViewController {
     }
 }
 
-#Preview {
-    UINavigationController(rootViewController: CharactersViewController())
+
+extension CharacterListViewController: CharacterListDisplayLogic {
+    func displayCharacters(viewModel: CharacterList.ShowCharacters.ViewModel) {
+        rows = viewModel.rows
+        tableView.reloadData()
+    }
 }
