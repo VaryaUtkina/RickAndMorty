@@ -1,5 +1,5 @@
 //
-//  CharactersViewController.swift
+//  CharacterListViewController.swift
 //  RickAndMorty
 //
 //  Created by Варвара Уткина on 02.12.2024.
@@ -7,7 +7,7 @@
 
 import UIKit
 
-final class CharactersViewController: UITableViewController {
+final class CharacterListViewController: UITableViewController {
     
     private let networkManager = NetworkManager.shared
     private let storageManager = StorageManager.shared
@@ -17,6 +17,8 @@ final class CharactersViewController: UITableViewController {
     
     private var isLoading = false
     private var hasMoreData = false
+    
+    var interactor: CharacterListBusinessLogic?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -30,6 +32,8 @@ final class CharactersViewController: UITableViewController {
         
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 100
+        
+        CharacterListConfigurator.shared.configure(with: self)
         
         isFirstAppLaunch { [weak self] in
             guard let self else { return }
@@ -127,7 +131,7 @@ final class CharactersViewController: UITableViewController {
 }
 
 // MARK: - UITableViewDataSource
-extension CharactersViewController {
+extension CharacterListViewController {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         dataCharacters.count
     }
@@ -142,7 +146,7 @@ extension CharactersViewController {
 }
 
 // MARK: - UITableViewDelegate
-extension CharactersViewController {
+extension CharacterListViewController {
     override func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let offsetY = scrollView.contentOffset.y
         let contentHeight = scrollView.contentSize.height
@@ -190,7 +194,7 @@ extension CharactersViewController {
 
 
 // MARK: - UIAlertController
-private extension CharactersViewController {
+private extension CharacterListViewController {
     func showAlert(withCharacter character: CharacterData, completion: @escaping(String?) -> Void) {
         let alert = UIAlertController(title: "Editing", message: "Enter new Character's name", preferredStyle: .alert)
         let okAction = UIAlertAction(title: "OK", style: .default) { _ in
@@ -227,7 +231,7 @@ private extension CharactersViewController {
 }
 
 // MARK: - Setup NavigationBar
-private extension CharactersViewController {
+private extension CharacterListViewController {
     func setupNavigationBar() {
         title = "Rick and Morty"
         navigationController?.navigationBar.prefersLargeTitles = true
